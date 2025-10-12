@@ -6,6 +6,7 @@ def format_character_summary(char: dict) -> str:
     return f"""
 Name: {char.get('name', 'Unknown')}
 ID: {char.get('id', 'N/A')}
+Entity ID: {char.get('entity_id', 'N/A')}
 Title: {char.get('title') or 'None'}
 Age: {char.get('age') or 'Unknown'}
 Sex: {char.get('sex') or 'Unknown'}
@@ -26,6 +27,7 @@ def format_character_detail(char: dict) -> str:
     return f"""
 Name: {char.get('name', 'Unknown')}
 ID: {char.get('id', 'N/A')}
+Entity ID: {char.get('entity_id', 'N/A')}
 Title: {char.get('title') or 'None'}
 Age: {char.get('age') or 'Unknown'}
 Sex: {char.get('sex') or 'Unknown'}
@@ -264,3 +266,110 @@ Updated fields: {', '.join(updated_fields)}
 """
         
         return "Character updated, but unexpected response format."
+
+    @mcp.tool()
+    async def update_character_hotness(character_name: str, hotness_value: int) -> str:
+        """Update a character's hotness attribute by name.
+        
+        This tool follows the complex flow: find character -> get entity_id -> 
+        get entity attributes -> find/update hotness attribute.
+        
+        Args:
+            character_name: The name of the character to update
+            hotness_value: The new hotness value (must be an integer, e.g., 7, 8, 9)
+        """
+        # Step 1: Find the character by name
+        characters_data = await make_kanka_request("characters")
+        
+        if not characters_data or "data" not in characters_data:
+            return f"Unable to search for character '{character_name}'."
+        
+        if "error" in characters_data:
+            return f"Error searching for character: {characters_data['error']}"
+        
+        target_character = None
+        for char in characters_data["data"]:
+            if char.get("name", "").lower() == character_name.lower():
+                target_character = char
+                break
+        
+        if not target_character:
+            return f"Character '{character_name}' not found in campaign."
+        
+        entity_id = target_character.get("entity_id")
+        if not entity_id:
+            return f"Character '{character_name}' has no entity_id."
+        
+        # Step 2: Get entity attributes to find hotness attribute
+        attributes_data = await make_kanka_request(f"entities/{entity_id}/attributes")
+        
+        if not attributes_data:
+            return f"Unable to fetch attributes for character '{character_name}'."
+        
+        if "error" in attributes_data:
+            return f"Error fetching attributes: {attributes_data['error']}"
+        
+        # Step 3: Find the hotness attribute
+        hotness_attribute = None
+        if "data" in attributes_data and attributes_data["data"]:
+            for attr in attributes_data["data"]:
+                if attr.get("name", "").lower() == "hotness":
+                    hotness_attribute = attr
+                    break
+        
+        # Step 4: Update or create the hotness attribute
+        if hotness_attribute:
+            # Update existing hotness attribute
+            attribute_id = hotness_attribute["id"]
+            update_data = {
+                "name": hotness_attribute.get("name", "Hotness"),  # Preserve original casing
+                "value": str(hotness_value),
+                "type_id": hotness_attribute.get("type_id", 1)  # Keep existing type
+            }
+            
+            result = await update_kanka_entity(f"entities/{entity_id}/attributes/{attribute_id}", update_data)
+            
+            if not result:
+                return f"Failed to update hotness for '{character_name}'."
+            
+            if "error" in result:
+                return f"Error updating hotness: {result['error']}"
+            
+            if "data" in result:
+                return f"""
+Successfully updated hotness for '{character_name}'!
+
+Character: {character_name}
+Entity ID: {entity_id}
+Attribute: hotness
+New Value: {hotness_value}
+Previous Value: {hotness_attribute.get('value', 'Unknown')}
+"""
+        else:
+            # Create new hotness attribute
+            create_data = {
+                "name": "Hotness",  # Use proper casing for new attributes
+                "value": str(hotness_value),
+                "type_id": 1  # Standard type
+            }
+            
+            result = await create_kanka_entity(f"entities/{entity_id}/attributes", create_data)
+            
+            if not result:
+                return f"Failed to create hotness attribute for '{character_name}'."
+            
+            if "error" in result:
+                return f"Error creating hotness attribute: {result['error']}"
+            
+            if "data" in result:
+                return f"""
+Successfully created hotness attribute for '{character_name}'!
+
+Character: {character_name}
+Entity ID: {entity_id}
+Attribute: hotness
+Value: {hotness_value}
+(New attribute created)
+"""
+        
+        return "Hotness update completed, but unexpected response format."

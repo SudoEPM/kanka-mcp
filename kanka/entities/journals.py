@@ -6,6 +6,7 @@ def format_journal_summary(journal: dict) -> str:
     return f"""
 Name: {journal.get('name', 'Unknown')}
 ID: {journal.get('id', 'N/A')}
+Entity ID: {journal.get('entity_id', 'N/A')}
 Type: {journal.get('type') or 'None'}
 Date: {journal.get('date') or 'No date'}
 Author ID: {journal.get('author_id') or 'None'}
@@ -26,6 +27,7 @@ def format_journal_detail(journal: dict) -> str:
     return f"""
 Name: {journal.get('name', 'Unknown')}
 ID: {journal.get('id', 'N/A')}
+Entity ID: {journal.get('entity_id', 'N/A')}
 Type: {journal.get('type') or 'None'}
 Date: {journal.get('date') or 'No date'}
 Author ID: {journal.get('author_id') or 'None'}
