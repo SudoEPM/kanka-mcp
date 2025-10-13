@@ -4,6 +4,7 @@ from .client import KANKA_API_TOKEN, KANKA_CAMPAIGN_ID
 from .entities.characters import register_character_tools
 from .entities.journals import register_journal_tools
 from .entities.quests import register_quest_tools
+from .entities.organizations import register_organization_tools
 
 # Initialize FastMCP server
 mcp = FastMCP("kanka")
@@ -12,6 +13,7 @@ mcp = FastMCP("kanka")
 register_character_tools(mcp)
 register_journal_tools(mcp)
 register_quest_tools(mcp)
+register_organization_tools(mcp)
 
 def main():
     # Check if required env vars are set
