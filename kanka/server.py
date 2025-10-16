@@ -7,6 +7,7 @@ from .entities.quests import register_quest_tools
 from .entities.organizations import register_organization_tools
 from .entities.calendars import register_calendar_tools
 from .entities.locations import register_location_tools
+from .entities.events import register_event_tools
 
 # Initialize FastMCP server
 mcp = FastMCP("kanka")
@@ -18,6 +19,7 @@ register_quest_tools(mcp)
 register_organization_tools(mcp)
 register_calendar_tools(mcp)
 register_location_tools(mcp)
+register_event_tools(mcp)
 
 def main():
     # Check if required env vars are set

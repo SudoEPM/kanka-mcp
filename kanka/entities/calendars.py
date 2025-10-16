@@ -113,7 +113,7 @@ def register_calendar_tools(mcp: FastMCP):
         # Build update data with date fields and required calendar structure
         update_data = {
             # Required calendar structure that must always be included
-            "month_name": ["Zarantyr", "Olarune", "Therendor", "Eyre", "Dravago", "Nymm", "Lharvion", "Barrakas", "Rhaan", "Sypheros", "Aryth", "Vult"],
+            "month_name": ["Zarantyr (Jan)", "Olarune (Feb)", "Therendor (Mar)", "Eyre (April)", "Dravago (May)", "Nymm (June)", "Lharvion (July)", "Barrakas (Aug)", "Rhaan (Sep)", "Sypheros (Oct)", "Aryth (Nov)", "Vult (Dec)"],
             "month_length": [28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28],
             "month_type": ["standard", "standard", "standard", "standard", "standard", "standard", "standard", "standard", "standard", "standard", "standard", "standard"],
             "month_alias": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
