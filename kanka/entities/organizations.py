@@ -242,3 +242,137 @@ Updated fields: {', '.join(updated_fields)}
 """
         
         return "Organization updated, but unexpected response format."
+
+    @mcp.tool()
+    async def get_organization_members(organization_id: int) -> str:
+        """Get all members of a specific organization.
+
+        Args:
+            organization_id: The ID of the organization to get members for
+        """
+        data = await make_kanka_request(f"organisations/{organization_id}/organisation_members")
+
+        if not data:
+            return f"Unable to fetch members for organization {organization_id}."
+
+        if "error" in data:
+            return f"Error: {data['error']}"
+
+        if "data" not in data or not data["data"]:
+            return f"No members found for organization {organization_id}."
+
+        members = []
+        for member in data["data"]:
+            member_info = f"""
+Member ID: {member.get('id')}
+Character ID: {member.get('character_id')}
+Role: {member.get('role') or 'No role specified'}
+Privacy: {'Private' if member.get('is_private') else 'Public'}
+"""
+            members.append(member_info.strip())
+
+        header = f"Members of organization {organization_id}:\n\n"
+        return header + "\n---\n".join(members)
+
+    @mcp.tool()
+    async def add_organization_member(
+        organization_id: int,
+        character_id: int,
+        role: str = "",
+        is_private: bool = False
+    ) -> str:
+        """Add a character as a member of an organization.
+
+        Args:
+            organization_id: The ID of the organization
+            character_id: The ID of the character to add as a member
+            role: The member's role in the organization (e.g., "Leader", "Member", "Captain")
+            is_private: Whether this membership is private (admin-only)
+        """
+        member_data = {
+            "character_id": character_id,
+            "role": role,
+            "is_private": is_private
+        }
+
+        # Remove empty string values
+        member_data = {k: v for k, v in member_data.items() if v != ""}
+
+        result = await create_kanka_entity(f"organisations/{organization_id}/organisation_members", member_data)
+
+        if not result:
+            return f"Failed to add member to organization {organization_id}."
+
+        if "error" in result:
+            return f"Error adding member: {result['error']}"
+
+        if "data" in result:
+            member = result["data"]
+            return f"""
+Successfully added member to organization!
+
+Member ID: {member.get('id')}
+Organization ID: {organization_id}
+Character ID: {member.get('character_id')}
+Role: {member.get('role') or 'No role specified'}
+Privacy: {'Private' if member.get('is_private') else 'Public'}
+
+The character has been added as a member of the organization.
+"""
+
+        return "Member added, but unexpected response format."
+
+    @mcp.tool()
+    async def update_organization_member(
+        organization_id: int,
+        member_id: int,
+        role: str = None,
+        is_private: bool = None
+    ) -> str:
+        """Update an existing organization member's role or privacy.
+
+        Only provided fields will be updated - others remain unchanged.
+
+        Args:
+            organization_id: The ID of the organization
+            member_id: The ID of the member record to update
+            role: New role for the member
+            is_private: New privacy setting
+        """
+        # Build update data with only provided values
+        update_data = {}
+        if role is not None:
+            update_data["role"] = role
+        if is_private is not None:
+            update_data["is_private"] = is_private
+
+        if not update_data:
+            return "No updates provided. Please specify at least one field to update."
+
+        result = await update_kanka_entity(
+            f"organisations/{organization_id}/organisation_members/{member_id}",
+            update_data
+        )
+
+        if not result:
+            return f"Failed to update member {member_id} in organization {organization_id}."
+
+        if "error" in result:
+            return f"Error updating member: {result['error']}"
+
+        if "data" in result:
+            member = result["data"]
+            updated_fields = list(update_data.keys())
+            return f"""
+Successfully updated organization member!
+
+Member ID: {member.get('id')}
+Organization ID: {organization_id}
+Character ID: {member.get('character_id')}
+Role: {member.get('role') or 'No role specified'}
+Privacy: {'Private' if member.get('is_private') else 'Public'}
+
+Updated fields: {', '.join(updated_fields)}
+"""
+
+        return "Member updated, but unexpected response format."
