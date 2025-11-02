@@ -148,7 +148,8 @@ def register_character_tools(mcp: FastMCP):
 Successfully created character!
 
 Name: {character.get('name')}
-ID: {character.get('id')}
+Character ID: {character.get('id')}
+Entity ID: {character.get('entity_id')}
 Title: {character.get('title') or 'None'}
 Age: {character.get('age') or 'Unknown'}
 Sex: {character.get('sex') or 'Unknown'}

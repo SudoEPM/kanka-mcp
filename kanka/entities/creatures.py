@@ -153,7 +153,8 @@ def register_creature_tools(mcp: FastMCP):
 Successfully created creature!
 
 Name: {creature.get('name')}
-ID: {creature.get('id')}
+Creature ID: {creature.get('id')}
+Entity ID: {creature.get('entity_id')}
 Type: {creature.get('type') or 'None'}
 Status: {status}
 Parent Creature ID: {creature.get('creature_id') or 'None'}
