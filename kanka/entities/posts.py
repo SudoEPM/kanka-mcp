@@ -94,6 +94,7 @@ Name: {post.get('name', 'Untitled')}
 Post ID: {post.get('id')}
 Position: {post.get('position')}
 Visibility: {'Private' if post.get('is_private') else 'Public'}
+Tags: {len(post.get('tags', []))} tag(s)
 Created: {post.get('created_at')}
 Updated: {post.get('updated_at')}
 
@@ -131,6 +132,7 @@ Post ID: {post.get('id')}
 Entity ID: {post.get('entity_id')}
 Position: {post.get('position')}
 Visibility: {'Private' if post.get('is_private') else 'Public'}
+Tags: {post.get('tags', [])}
 Created: {post.get('created_at')}
 Updated: {post.get('updated_at')}
 
