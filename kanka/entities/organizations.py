@@ -1,6 +1,16 @@
 from mcp.server.fastmcp import FastMCP
 from ..client import make_kanka_request, create_kanka_entity, update_kanka_entity
 
+def _status_label(entity: dict) -> str:
+    status = entity.get('status') or {}
+    key = status.get('key')
+    status_id = entity.get('status_id')
+    if key and status_id:
+        return f"{key} (status_id={status_id})"
+    if status_id:
+        return f"status_id={status_id}"
+    return 'None'
+
 def format_organization_summary(org: dict) -> str:
     """Format an organization into a readable summary."""
     return f"""
@@ -8,7 +18,7 @@ Name: {org.get('name', 'Unknown')}
 ID: {org.get('id', 'N/A')}
 Entity ID: {org.get('entity_id', 'N/A')}
 Type: {org.get('type') or 'None'}
-Status: {'Defunct' if org.get('is_defunct') else 'Active'}
+Status: {_status_label(org)}
 Parent Organization ID: {org.get('organisation_id') or 'None'}
 Locations: {len(org.get('locations', []))} location(s)
 Members: {len(org.get('members', []))} member(s)
@@ -23,7 +33,7 @@ Name: {org.get('name', 'Unknown')}
 ID: {org.get('id', 'N/A')}
 Entity ID: {org.get('entity_id', 'N/A')}
 Type: {org.get('type') or 'None'}
-Status: {'Defunct' if org.get('is_defunct') else 'Active'}
+Status: {_status_label(org)}
 Parent Organization ID: {org.get('organisation_id') or 'None (Top-level organization)'}
 
 Entry/Description:
@@ -85,19 +95,20 @@ def register_organization_tools(mcp: FastMCP):
         name: str,
         entry: str = "",
         org_type: str = "",
-        is_defunct: bool = False,
+        status_id: int = None,
         parent_organization_id: int = None,
         location_ids: list = None,
         entity_image_uuid: str = None,
         is_private: bool = False
     ) -> str:
         """Create a new organization in the campaign.
-        
+
         Args:
             name: The organization's name (required)
             entry: HTML description of the organization
             org_type: Organization type (e.g., "Guild", "Kingdom", "Company")
-            is_defunct: Whether the organization is defunct/inactive
+            status_id: ID of a campaign category_status (e.g. defunct). Use
+                get_statuses_for("organisation") to discover valid IDs.
             parent_organization_id: ID of the parent organization (for sub-organizations)
             location_ids: List of location IDs where this organization has presence
             entity_image_uuid: Gallery image UUID for the organization image
@@ -107,11 +118,12 @@ def register_organization_tools(mcp: FastMCP):
             "name": name,
             "entry": entry,
             "type": org_type,
-            "is_defunct": is_defunct,
             "is_private": is_private
         }
-        
+
         # Only include optional fields if provided
+        if status_id is not None:
+            org_data["status_id"] = status_id
         if parent_organization_id is not None:
             org_data["organisation_id"] = parent_organization_id
         if location_ids is not None:
@@ -139,7 +151,7 @@ Name: {organization.get('name')}
 Organization ID: {organization.get('id')}
 Entity ID: {organization.get('entity_id')}
 Type: {organization.get('type') or 'None'}
-Status: {'Defunct' if organization.get('is_defunct') else 'Active'}
+Status: {_status_label(organization)}
 Parent Organization ID: {organization.get('organisation_id') or 'None'}
 Locations: {len(organization.get('locations', []))} location(s)
 Visibility: {'Private' if organization.get('is_private') else 'Public'}
@@ -154,22 +166,23 @@ The organization has been added to your campaign.
         organization_name: str,
         entry: str = None,
         org_type: str = None,
-        is_defunct: bool = None,
+        status_id: int = None,
         parent_organization_id: int = None,
         location_ids: list = None,
         entity_image_uuid: str = None,
         is_private: bool = None
     ) -> str:
         """Update an existing organization by name.
-        
+
         First searches for the organization by name, then updates the specified fields.
         Only provided fields will be updated - others remain unchanged.
-        
+
         Args:
             organization_name: The name of the organization to update (used for search)
             entry: HTML description of the organization
             org_type: Organization type (e.g., "Guild", "Kingdom", "Company")
-            is_defunct: Whether the organization is defunct/inactive
+            status_id: ID of a campaign category_status (e.g. defunct). Use
+                get_statuses_for("organisation") to discover valid IDs.
             parent_organization_id: ID of the parent organization (for sub-organizations)
             location_ids: List of location IDs where this organization has presence
             entity_image_uuid: Gallery image UUID for the organization image
@@ -177,12 +190,13 @@ The organization has been added to your campaign.
         """
         # First, search for the organization by name
         organizations_data = await make_kanka_request("organisations")
-        
-        if not organizations_data or "data" not in organizations_data:
+
+        if not organizations_data:
             return f"Unable to search for organization '{organization_name}'."
-        
         if "error" in organizations_data:
             return f"Error searching for organization: {organizations_data['error']}"
+        if "data" not in organizations_data:
+            return f"Unexpected response searching for organization '{organization_name}'."
         
         # Find organization with matching name (case-insensitive)
         target_organization = None
@@ -202,8 +216,8 @@ The organization has been added to your campaign.
             update_data["entry"] = entry
         if org_type is not None:
             update_data["type"] = org_type
-        if is_defunct is not None:
-            update_data["is_defunct"] = is_defunct
+        if status_id is not None:
+            update_data["status_id"] = status_id
         if parent_organization_id is not None:
             update_data["organisation_id"] = parent_organization_id
         if location_ids is not None:
@@ -234,7 +248,7 @@ Successfully updated organization '{organization_name}'!
 Name: {organization.get('name')}
 ID: {organization.get('id')}
 Type: {organization.get('type') or 'None'}
-Status: {'Defunct' if organization.get('is_defunct') else 'Active'}
+Status: {_status_label(organization)}
 Parent Organization ID: {organization.get('organisation_id') or 'None'}
 Locations: {len(organization.get('locations', []))} location(s)
 Visibility: {'Private' if organization.get('is_private') else 'Public'}

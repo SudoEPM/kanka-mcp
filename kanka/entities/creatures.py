@@ -1,21 +1,24 @@
 from mcp.server.fastmcp import FastMCP
 from ..client import make_kanka_request, create_kanka_entity, update_kanka_entity
 
+def _status_label(creature: dict) -> str:
+    status = creature.get('status') or {}
+    key = status.get('key')
+    status_id = creature.get('status_id')
+    if key and status_id:
+        return f"{key} (status_id={status_id})"
+    if status_id:
+        return f"status_id={status_id}"
+    return 'None'
+
 def format_creature_summary(creature: dict) -> str:
     """Format a creature into a readable summary."""
-    status_parts = []
-    if creature.get('is_extinct'):
-        status_parts.append('Extinct')
-    if creature.get('is_dead'):
-        status_parts.append('Dead')
-    status = ', '.join(status_parts) if status_parts else 'Alive'
-
     return f"""
 Name: {creature.get('name', 'Unknown')}
 ID: {creature.get('id', 'N/A')}
 Entity ID: {creature.get('entity_id', 'N/A')}
 Type: {creature.get('type') or 'None'}
-Status: {status}
+Status: {_status_label(creature)}
 Parent Creature ID: {creature.get('creature_id') or 'None'}
 Tags: {len(creature.get('tags', []))} tag(s)
 Is Private: {'Yes' if creature.get('is_private') else 'No'}
@@ -23,19 +26,12 @@ Is Private: {'Yes' if creature.get('is_private') else 'No'}
 
 def format_creature_detail(creature: dict) -> str:
     """Format a creature's full details."""
-    status_parts = []
-    if creature.get('is_extinct'):
-        status_parts.append('Extinct')
-    if creature.get('is_dead'):
-        status_parts.append('Dead')
-    status = ', '.join(status_parts) if status_parts else 'Alive'
-
     return f"""
 Name: {creature.get('name', 'Unknown')}
 ID: {creature.get('id', 'N/A')}
 Entity ID: {creature.get('entity_id', 'N/A')}
 Type: {creature.get('type') or 'None'}
-Status: {status}
+Status: {_status_label(creature)}
 Parent Creature ID: {creature.get('creature_id') or 'None (Top-level creature)'}
 
 Entry/Description:
@@ -96,8 +92,7 @@ def register_creature_tools(mcp: FastMCP):
         name: str,
         entry: str = "",
         creature_type: str = "",
-        is_extinct: bool = False,
-        is_dead: bool = False,
+        status_id: int = None,
         parent_creature_id: int = None,
         entity_image_uuid: str = None,
         is_private: bool = False
@@ -108,8 +103,8 @@ def register_creature_tools(mcp: FastMCP):
             name: The creature's name (required)
             entry: HTML description of the creature
             creature_type: Creature type (e.g., "Dragon", "Beast", "Humanoid", "Undead")
-            is_extinct: Whether the creature species is extinct
-            is_dead: Whether this specific creature is dead
+            status_id: ID of a campaign category_status (e.g. dead/extinct). Use
+                get_statuses_for("creature") to discover valid IDs.
             parent_creature_id: ID of the parent creature (for sub-species or variants)
             entity_image_uuid: Gallery image UUID for the creature image
             is_private: Whether the creature is only visible to admins
@@ -118,12 +113,12 @@ def register_creature_tools(mcp: FastMCP):
             "name": name,
             "entry": entry,
             "type": creature_type,
-            "is_extinct": is_extinct,
-            "is_dead": is_dead,
             "is_private": is_private
         }
 
         # Only include optional fields if provided
+        if status_id is not None:
+            creature_data["status_id"] = status_id
         if parent_creature_id is not None:
             creature_data["creature_id"] = parent_creature_id
         if entity_image_uuid is not None:
@@ -142,13 +137,6 @@ def register_creature_tools(mcp: FastMCP):
 
         if "data" in result:
             creature = result["data"]
-            status_parts = []
-            if creature.get('is_extinct'):
-                status_parts.append('Extinct')
-            if creature.get('is_dead'):
-                status_parts.append('Dead')
-            status = ', '.join(status_parts) if status_parts else 'Alive'
-
             return f"""
 Successfully created creature!
 
@@ -156,7 +144,7 @@ Name: {creature.get('name')}
 Creature ID: {creature.get('id')}
 Entity ID: {creature.get('entity_id')}
 Type: {creature.get('type') or 'None'}
-Status: {status}
+Status: {_status_label(creature)}
 Parent Creature ID: {creature.get('creature_id') or 'None'}
 Visibility: {'Private' if creature.get('is_private') else 'Public'}
 
@@ -170,8 +158,7 @@ The creature has been added to your campaign.
         creature_name: str,
         entry: str = None,
         creature_type: str = None,
-        is_extinct: bool = None,
-        is_dead: bool = None,
+        status_id: int = None,
         parent_creature_id: int = None,
         entity_image_uuid: str = None,
         is_private: bool = None
@@ -185,8 +172,8 @@ The creature has been added to your campaign.
             creature_name: The name of the creature to update (used for search)
             entry: HTML description of the creature
             creature_type: Creature type (e.g., "Dragon", "Beast", "Humanoid", "Undead")
-            is_extinct: Whether the creature species is extinct
-            is_dead: Whether this specific creature is dead
+            status_id: ID of a campaign category_status (e.g. dead/extinct). Use
+                get_statuses_for("creature") to discover valid IDs.
             parent_creature_id: ID of the parent creature (for sub-species or variants)
             entity_image_uuid: Gallery image UUID for the creature image
             is_private: Whether the creature is only visible to admins
@@ -194,11 +181,12 @@ The creature has been added to your campaign.
         # First, search for the creature by name
         creatures_data = await make_kanka_request("creatures")
 
-        if not creatures_data or "data" not in creatures_data:
+        if not creatures_data:
             return f"Unable to search for creature '{creature_name}'."
-
         if "error" in creatures_data:
             return f"Error searching for creature: {creatures_data['error']}"
+        if "data" not in creatures_data:
+            return f"Unexpected response searching for creature '{creature_name}'."
 
         # Find creature with matching name (case-insensitive)
         target_creature = None
@@ -218,10 +206,8 @@ The creature has been added to your campaign.
             update_data["entry"] = entry
         if creature_type is not None:
             update_data["type"] = creature_type
-        if is_extinct is not None:
-            update_data["is_extinct"] = is_extinct
-        if is_dead is not None:
-            update_data["is_dead"] = is_dead
+        if status_id is not None:
+            update_data["status_id"] = status_id
         if parent_creature_id is not None:
             update_data["creature_id"] = parent_creature_id
         if entity_image_uuid is not None:
@@ -244,20 +230,13 @@ The creature has been added to your campaign.
         if "data" in result:
             creature = result["data"]
             updated_fields = list(update_data.keys())
-            status_parts = []
-            if creature.get('is_extinct'):
-                status_parts.append('Extinct')
-            if creature.get('is_dead'):
-                status_parts.append('Dead')
-            status = ', '.join(status_parts) if status_parts else 'Alive'
-
             return f"""
 Successfully updated creature '{creature_name}'!
 
 Name: {creature.get('name')}
 ID: {creature.get('id')}
 Type: {creature.get('type') or 'None'}
-Status: {status}
+Status: {_status_label(creature)}
 Parent Creature ID: {creature.get('creature_id') or 'None'}
 Visibility: {'Private' if creature.get('is_private') else 'Public'}
 
