@@ -294,12 +294,13 @@ Updated fields: {', '.join(updated_fields)}
         """
         # Step 1: Find the character by name
         characters_data = await make_kanka_request("characters")
-        
-        if not characters_data or "data" not in characters_data:
+
+        if not characters_data:
             return f"Unable to search for character '{character_name}'."
-        
         if "error" in characters_data:
             return f"Error searching for character: {characters_data['error']}"
+        if "data" not in characters_data:
+            return f"Unexpected response searching for character '{character_name}'."
         
         target_character = None
         for char in characters_data["data"]:

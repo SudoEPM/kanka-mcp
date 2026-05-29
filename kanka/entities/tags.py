@@ -179,11 +179,12 @@ The tag has been added to your campaign.
         # First, search for the tag by name
         tags_data = await make_kanka_request("tags")
 
-        if not tags_data or "data" not in tags_data:
+        if not tags_data:
             return f"Unable to search for tag '{tag_name}'."
-
         if "error" in tags_data:
             return f"Error searching for tag: {tags_data['error']}"
+        if "data" not in tags_data:
+            return f"Unexpected response searching for tag '{tag_name}'."
 
         # Find tag with matching name (case-insensitive)
         target_tag = None

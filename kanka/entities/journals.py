@@ -201,11 +201,12 @@ The journal has been added to your campaign.
         # First, search for the journal by name
         journals_data = await make_kanka_request("journals")
 
-        if not journals_data or "data" not in journals_data:
+        if not journals_data:
             return f"Unable to search for journal '{journal_name}'."
-
         if "error" in journals_data:
             return f"Error searching for journal: {journals_data['error']}"
+        if "data" not in journals_data:
+            return f"Unexpected response searching for journal '{journal_name}'."
 
         # Find journal with matching name (case-insensitive)
         target_journal = None

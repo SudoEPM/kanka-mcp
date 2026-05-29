@@ -231,11 +231,12 @@ The event has been added to your campaign.
         # First, search for the event by name
         events_data = await make_kanka_request("events")
 
-        if not events_data or "data" not in events_data:
+        if not events_data:
             return f"Unable to search for event '{event_name}'."
-
         if "error" in events_data:
             return f"Error searching for event: {events_data['error']}"
+        if "data" not in events_data:
+            return f"Unexpected response searching for event '{event_name}'."
 
         # Find event with matching name (case-insensitive)
         target_event = None

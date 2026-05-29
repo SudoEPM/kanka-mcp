@@ -361,11 +361,12 @@ The character has been added as a member of the organization.
             f"organisations/{organization_id}/organisation_members/{member_id}"
         )
 
-        if not member_data or "data" not in member_data:
+        if not member_data:
             return f"Unable to fetch member {member_id} from organization {organization_id}."
-
         if "error" in member_data:
             return f"Error fetching member: {member_data['error']}"
+        if "data" not in member_data:
+            return f"Unexpected response fetching member {member_id} from organization {organization_id}."
 
         existing_member = member_data["data"]
         character_id = existing_member.get("character_id")
