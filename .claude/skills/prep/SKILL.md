@@ -6,7 +6,7 @@ argument-hint: (none — operates on the current branch or pending edits on main
 
 # Prep skill — kanka-mcp
 
-Drives a feature/fix from "code is written" to "PR ready for merge" — adapted for this repo's Python MCP-server shape (no CI workflow, single-user repo, Kanka REST as the external contract).
+Drives a feature/fix from "code is written" to "PR ready for merge" — adapted for this repo's Python MCP-server shape (single-user repo, Kanka REST as the external contract, minimal `Build & Test` CI gate on PRs).
 
 The skill has 11 steps. Stop after step 11 — **do not poll merge state**, the user merges when satisfied.
 
@@ -64,7 +64,7 @@ Present via `AskUserQuestion` with two options:
 - **"Verified — proceed"** (recommended)
 - **"Bypass — I'll verify after merge"**
 
-Do not silently skip this step. The whole point is to make the user pause before opening a PR they'd regret. With no CI, this gate is *more* important than in sibling repos, not less.
+Do not silently skip this step. CI catches import/syntax breakage, but the manual gate is the only thing that catches semantic regressions like a tool-signature change that breaks an existing Claude Desktop prompt.
 
 ## Step 3 — Commit pending work, draft PR metadata, push + open
 
@@ -239,7 +239,7 @@ Format:
 gh pr ready $PR_NUM
 ```
 
-There's no CI workflow in `.github/workflows/`, so this doesn't trigger a build — it just signals "iteration done, mergeable on your time."
+This is the CI-spend trigger: `.github/workflows/ci.yml` re-runs on `ready_for_review`, and the `Build & Test` check is required by main's branch protection. Don't flip until you actually want CI to run.
 
 ## Step 11 — Stop
 
