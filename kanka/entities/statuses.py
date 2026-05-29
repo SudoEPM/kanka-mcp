@@ -26,10 +26,12 @@ async def _fetch_all_pages(endpoint: str) -> tuple[list[dict] | None, str | None
         page += 1
     return rows, None
 
-async def fetch_entity_type_map() -> dict[int, str]:
-    """Return {entity_type_id: code} across all paginated pages."""
-    rows, _err = await _fetch_all_pages("entity_types")
-    return {et["id"]: et["code"] for et in (rows or [])}
+async def fetch_entity_type_map() -> tuple[dict[int, str], str | None]:
+    """Return ({entity_type_id: code}, error_message_or_None) across all pages."""
+    rows, err = await _fetch_all_pages("entity_types")
+    if err:
+        return {}, err
+    return {et["id"]: et["code"] for et in (rows or [])}, None
 
 def register_status_tools(mcp: FastMCP):
     """Register all status-related tools with the MCP server."""
@@ -52,7 +54,9 @@ def register_status_tools(mcp: FastMCP):
         if not statuses:
             return "No statuses found."
 
-        entity_type_map = await fetch_entity_type_map()
+        entity_type_map, et_err = await fetch_entity_type_map()
+        if et_err:
+            return f"Error fetching entity_types: {et_err}"
 
         if entity_type:
             wanted = entity_type.lower().strip()

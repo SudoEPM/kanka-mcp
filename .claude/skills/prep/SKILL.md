@@ -248,7 +248,7 @@ Tell the user the PR is ready, link the URL, stop. Do not poll merge state — t
 ## Common pitfalls — re-check before each step
 
 - **Don't post "Fixed in <SHA>" replies.** Only reply when disagreeing or deferring. The commit speaks for itself.
-- **Don't bypass the verification step** without surfacing it. With no CI here, step 2 is the only safety net before the change lives on main.
+- **Don't bypass the verification step** without surfacing it. CI catches import/syntax breakage, but step 2 is the only thing that catches semantic regressions like a tool-signature change that breaks an existing Claude Desktop prompt.
 - **Don't reintroduce check-ins between steps 2 and 9.** Beyond step 2, hands-off: commit, open, iterate, flip. Print decisions inline; let the user interject.
 - **Don't `git add -A`.** Stage explicit paths so `.env` and stray locals don't leak.
 - **Don't run a third Copilot pass by reflex.** Trust the user to ask.

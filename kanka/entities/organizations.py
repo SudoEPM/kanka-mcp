@@ -190,12 +190,13 @@ The organization has been added to your campaign.
         """
         # First, search for the organization by name
         organizations_data = await make_kanka_request("organisations")
-        
-        if not organizations_data or "data" not in organizations_data:
+
+        if not organizations_data:
             return f"Unable to search for organization '{organization_name}'."
-        
         if "error" in organizations_data:
             return f"Error searching for organization: {organizations_data['error']}"
+        if "data" not in organizations_data:
+            return f"Unexpected response searching for organization '{organization_name}'."
         
         # Find organization with matching name (case-insensitive)
         target_organization = None

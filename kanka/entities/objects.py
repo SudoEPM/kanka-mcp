@@ -223,11 +223,12 @@ The item has been added to your campaign.
         # First, search for the item by name
         items_data = await make_kanka_request("items")
 
-        if not items_data or "data" not in items_data:
+        if not items_data:
             return f"Unable to search for item '{item_name}'."
-
         if "error" in items_data:
             return f"Error searching for item: {items_data['error']}"
+        if "data" not in items_data:
+            return f"Unexpected response searching for item '{item_name}'."
 
         # Find item with matching name (case-insensitive)
         target_item = None

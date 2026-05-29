@@ -252,12 +252,13 @@ The quest has been added to your campaign.
         """
         # First, search for the quest by name
         quests_data = await make_kanka_request("quests")
-        
-        if not quests_data or "data" not in quests_data:
+
+        if not quests_data:
             return f"Unable to search for quest '{quest_name}'."
-        
         if "error" in quests_data:
             return f"Error searching for quest: {quests_data['error']}"
+        if "data" not in quests_data:
+            return f"Unexpected response searching for quest '{quest_name}'."
         
         # Find quest with matching name (case-insensitive)
         target_quest = None

@@ -1,12 +1,13 @@
-from mcp.server.fastmcp import FastMCP
-from ..client import make_kanka_request, create_kanka_entity, update_kanka_entity
 import httpx
-import os
-
-# Load from environment variables
-KANKA_API_TOKEN = os.getenv("KANKA_API_TOKEN", "")
-KANKA_CAMPAIGN_ID = os.getenv("KANKA_CAMPAIGN_ID", "")
-KANKA_API_BASE = "https://api.kanka.io/1.0"
+from mcp.server.fastmcp import FastMCP
+from ..client import (
+    KANKA_API_BASE,
+    KANKA_API_TOKEN,
+    KANKA_CAMPAIGN_ID,
+    create_kanka_entity,
+    make_kanka_request,
+    update_kanka_entity,
+)
 
 def format_journal_summary(journal: dict) -> str:
     """Format a journal into a readable summary."""

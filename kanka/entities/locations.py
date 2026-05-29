@@ -179,12 +179,13 @@ The location has been added to your campaign.
         """
         # First, search for the location by name
         locations_data = await make_kanka_request("locations")
-        
-        if not locations_data or "data" not in locations_data:
+
+        if not locations_data:
             return f"Unable to search for location '{location_name}'."
-        
         if "error" in locations_data:
             return f"Error searching for location: {locations_data['error']}"
+        if "data" not in locations_data:
+            return f"Unexpected response searching for location '{location_name}'."
         
         # Find location with matching name (case-insensitive)
         target_location = None

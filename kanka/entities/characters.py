@@ -207,12 +207,13 @@ The character has been added to your campaign.
         """
         # First, search for the character by name
         characters_data = await make_kanka_request("characters")
-        
-        if not characters_data or "data" not in characters_data:
+
+        if not characters_data:
             return f"Unable to search for character '{character_name}'."
-        
         if "error" in characters_data:
             return f"Error searching for character: {characters_data['error']}"
+        if "data" not in characters_data:
+            return f"Unexpected response searching for character '{character_name}'."
         
         # Find character with matching name (case-insensitive)
         target_character = None

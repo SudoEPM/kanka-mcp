@@ -181,11 +181,12 @@ The creature has been added to your campaign.
         # First, search for the creature by name
         creatures_data = await make_kanka_request("creatures")
 
-        if not creatures_data or "data" not in creatures_data:
+        if not creatures_data:
             return f"Unable to search for creature '{creature_name}'."
-
         if "error" in creatures_data:
             return f"Error searching for creature: {creatures_data['error']}"
+        if "data" not in creatures_data:
+            return f"Unexpected response searching for creature '{creature_name}'."
 
         # Find creature with matching name (case-insensitive)
         target_creature = None
