@@ -10,6 +10,20 @@ QUEST_IMAGES = {
     "generic": "a019c568-65ad-44c1-9d24-d0980262d207"     # Scroll with quill
 }
 
+# Default-system category_status ID for "completed" on quests.
+# Auto-image-swap keys off this; campaigns with custom statuses won't trigger it.
+QUEST_COMPLETED_STATUS_ID = 10
+
+def _status_label(quest: dict) -> str:
+    status = quest.get('status') or {}
+    key = status.get('key')
+    status_id = quest.get('status_id')
+    if key and status_id:
+        return f"{key} (status_id={status_id})"
+    if status_id:
+        return f"status_id={status_id}"
+    return 'None'
+
 def detect_quest_type(name: str, entry: str) -> str:
     """Detect quest type based on name and description to assign appropriate image."""
     text = f"{name} {entry}".lower()
@@ -39,7 +53,7 @@ Name: {quest.get('name', 'Unknown')}
 ID: {quest.get('id', 'N/A')}
 Entity ID: {quest.get('entity_id', 'N/A')}
 Type: {quest.get('type') or 'None'}
-Status: {'Completed' if quest.get('is_completed') else 'In Progress'}
+Status: {_status_label(quest)}
 Parent Quest ID: {quest.get('quest_id') or 'None'}
 Instigator ID: {quest.get('instigator_id') or 'None'}
 Location ID: {quest.get('location_id') or 'None'}
@@ -58,7 +72,7 @@ Name: {quest.get('name', 'Unknown')}
 ID: {quest.get('id', 'N/A')}
 Entity ID: {quest.get('entity_id', 'N/A')}
 Type: {quest.get('type') or 'None'}
-Status: {'Completed' if quest.get('is_completed') else 'In Progress'}
+Status: {_status_label(quest)}
 Parent Quest ID: {quest.get('quest_id') or 'None (Main Quest)'}
 Instigator ID: {quest.get('instigator_id') or 'None'}
 Location ID: {quest.get('location_id') or 'None'}
@@ -121,7 +135,7 @@ def register_quest_tools(mcp: FastMCP):
         name: str,
         entry: str = "",
         quest_type: str = "",
-        is_completed: bool = False,
+        status_id: int = None,
         parent_quest_id: int = None,
         instigator_id: int = None,
         location_id: int = None,
@@ -129,36 +143,42 @@ def register_quest_tools(mcp: FastMCP):
         is_private: bool = False
     ) -> str:
         """Create a new quest in the campaign.
-        
+
         Args:
             name: The quest's name (required)
             entry: HTML description of the quest
             quest_type: Quest type (e.g., "Main", "Side", "Personal")
-            is_completed: Whether the quest is completed
+            status_id: ID of a campaign category_status (e.g. not_started/ongoing/
+                completed/abandoned). Use get_statuses_for("quest") to discover
+                valid IDs. Passing the default "completed" id (10)
+                also auto-applies the checkmark image.
             parent_quest_id: ID of the parent quest (for sub-quests)
             instigator_id: ID of the entity that gave/started this quest
             location_id: ID of the quest's starting location
-            entity_image_uuid: Gallery image UUID for the quest image
+            entity_image_uuid: Gallery image UUID for the quest image (overrides
+                auto-detection)
             is_private: Whether the quest is only visible to admins
         """
         quest_data = {
             "name": name,
             "entry": entry,
             "type": quest_type,
-            "is_completed": is_completed,
             "is_private": is_private
         }
-        
-        # Auto-assign image based on quest type if no image provided
-        if entity_image_uuid is None:
-            if is_completed:
-                quest_data["entity_image_uuid"] = QUEST_IMAGES["completed"]
-            else:
-                detected_type = detect_quest_type(name, entry)
-                quest_data["entity_image_uuid"] = QUEST_IMAGES[detected_type]
-        else:
+
+        if status_id is not None:
+            quest_data["status_id"] = status_id
+
+        # Auto-assign image: explicit override wins, else completed-checkmark for
+        # the default "completed" status, else heuristic type detection.
+        if entity_image_uuid is not None:
             quest_data["entity_image_uuid"] = entity_image_uuid
-        
+        elif status_id == QUEST_COMPLETED_STATUS_ID:
+            quest_data["entity_image_uuid"] = QUEST_IMAGES["completed"]
+        else:
+            detected_type = detect_quest_type(name, entry)
+            quest_data["entity_image_uuid"] = QUEST_IMAGES[detected_type]
+
         # Only include optional IDs if provided
         if parent_quest_id is not None:
             quest_data["quest_id"] = parent_quest_id
@@ -187,7 +207,7 @@ Name: {quest.get('name')}
 Quest ID: {quest.get('id')}
 Entity ID: {quest.get('entity_id')}
 Type: {quest.get('type') or 'None'}
-Status: {'Completed' if quest.get('is_completed') else 'In Progress'}
+Status: {_status_label(quest)}
 Parent Quest ID: {quest.get('quest_id') or 'None'}
 Instigator ID: {quest.get('instigator_id') or 'None'}
 Location ID: {quest.get('location_id') or 'None'}
@@ -203,7 +223,7 @@ The quest has been added to your campaign.
         quest_name: str,
         entry: str = None,
         quest_type: str = None,
-        is_completed: bool = None,
+        status_id: int = None,
         parent_quest_id: int = None,
         instigator_id: int = None,
         location_id: int = None,
@@ -211,19 +231,23 @@ The quest has been added to your campaign.
         is_private: bool = None
     ) -> str:
         """Update an existing quest by name.
-        
+
         First searches for the quest by name, then updates the specified fields.
         Only provided fields will be updated - others remain unchanged.
-        
+
         Args:
             quest_name: The name of the quest to update (used for search)
             entry: HTML description of the quest
             quest_type: Quest type (e.g., "Main", "Side", "Personal")
-            is_completed: Whether the quest is completed
+            status_id: ID of a campaign category_status (e.g. not_started/ongoing/
+                completed/abandoned). Use get_statuses_for("quest") to discover
+                valid IDs. Passing the default "completed" id (10)
+                also auto-applies the checkmark image unless entity_image_uuid is set.
             parent_quest_id: ID of the parent quest (for sub-quests)
             instigator_id: ID of the entity that gave/started this quest
             location_id: ID of the quest's starting location
-            entity_image_uuid: Gallery image UUID for the quest image
+            entity_image_uuid: Gallery image UUID for the quest image (overrides
+                auto-detection)
             is_private: Whether the quest is only visible to admins
         """
         # First, search for the quest by name
@@ -253,8 +277,8 @@ The quest has been added to your campaign.
             update_data["entry"] = entry
         if quest_type is not None:
             update_data["type"] = quest_type
-        if is_completed is not None:
-            update_data["is_completed"] = is_completed
+        if status_id is not None:
+            update_data["status_id"] = status_id
         if parent_quest_id is not None:
             update_data["quest_id"] = parent_quest_id
         if instigator_id is not None:
@@ -263,19 +287,17 @@ The quest has been added to your campaign.
             update_data["location_id"] = location_id
         if is_private is not None:
             update_data["is_private"] = is_private
-        
-        # Handle image logic - completion overrides manual image selection
-        if is_completed is True:
-            # Quest marked complete - always use completion image
-            update_data["entity_image_uuid"] = QUEST_IMAGES["completed"]
-        elif entity_image_uuid is not None:
-            # Manual image provided
+
+        # Image logic: explicit override wins; else swap to checkmark when status
+        # is transitioning to the default "completed"; else, if status is moving
+        # away from "completed", re-detect from quest name/entry.
+        if entity_image_uuid is not None:
             update_data["entity_image_uuid"] = entity_image_uuid
-        elif is_completed is False:
-            # Quest marked incomplete but no manual image - detect type
+        elif status_id == QUEST_COMPLETED_STATUS_ID:
+            update_data["entity_image_uuid"] = QUEST_IMAGES["completed"]
+        elif status_id is not None and target_quest.get("status_id") == QUEST_COMPLETED_STATUS_ID:
             current_name = target_quest.get("name", "")
             current_entry = target_quest.get("entry", "")
-            # Use updated entry if provided, otherwise use current
             final_entry = entry if entry is not None else current_entry
             detected_type = detect_quest_type(current_name, final_entry)
             update_data["entity_image_uuid"] = QUEST_IMAGES[detected_type]
@@ -301,7 +323,7 @@ Successfully updated quest '{quest_name}'!
 Name: {quest.get('name')}
 ID: {quest.get('id')}
 Type: {quest.get('type') or 'None'}
-Status: {'Completed' if quest.get('is_completed') else 'In Progress'}
+Status: {_status_label(quest)}
 Parent Quest ID: {quest.get('quest_id') or 'None'}
 Instigator ID: {quest.get('instigator_id') or 'None'}
 Location ID: {quest.get('location_id') or 'None'}

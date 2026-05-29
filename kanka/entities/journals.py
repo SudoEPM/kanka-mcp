@@ -1,5 +1,12 @@
 from mcp.server.fastmcp import FastMCP
 from ..client import make_kanka_request, create_kanka_entity, update_kanka_entity
+import httpx
+import os
+
+# Load from environment variables
+KANKA_API_TOKEN = os.getenv("KANKA_API_TOKEN", "")
+KANKA_CAMPAIGN_ID = os.getenv("KANKA_CAMPAIGN_ID", "")
+KANKA_API_BASE = "https://api.kanka.io/1.0"
 
 def format_journal_summary(journal: dict) -> str:
     """Format a journal into a readable summary."""
@@ -263,3 +270,75 @@ Updated fields: {', '.join(updated_fields)}
 """
 
         return "Journal updated, but unexpected response format."
+
+    @mcp.tool()
+    async def send_summary_notification(session_title: str, summary: str) -> str:
+        """Send a summary notification via webhook.
+
+        Creates a temporary journal with tag 527715 as a child of the Notification Triggers journal,
+        which triggers a webhook notification. The journal is automatically deleted after creation.
+
+        This is useful for sending campaign summaries or notifications through your configured webhook.
+
+        Args:
+            session_title: The session title (e.g., "Session 9 - Descent into the Cogs")
+            summary: A brief summary of what happened in the session
+        """
+        # Tag ID that triggers the webhook
+        NOTIFICATION_TAG_ID = 527715
+        # Notification Triggers journal ID (parent journal)
+        NOTIFICATION_TRIGGERS_JOURNAL_ID = 163442
+
+        journal_data = {
+            "name": session_title,
+            "entry": summary,
+            "tooltip": summary,
+            "type": "Notification",
+            "journal_id": NOTIFICATION_TRIGGERS_JOURNAL_ID,
+            "tags": [NOTIFICATION_TAG_ID],
+            "save_tags": True,
+            "is_private": True  # Make it private so it doesn't clutter the public view
+        }
+
+        # Create the journal
+        result = await create_kanka_entity("journals", journal_data)
+
+        if not result or "error" in result:
+            error_msg = result.get('error', 'Unknown error') if result else 'Failed to create notification'
+            return f"Failed to send notification: {error_msg}"
+
+        if "data" not in result:
+            return "Failed to send notification: unexpected response format."
+
+        journal = result["data"]
+        journal_id = journal.get('id')
+
+        if not journal_id:
+            return "Notification created but unable to clean up (no ID returned)."
+
+        # Now delete the journal to clean up
+        headers = {
+            "Authorization": f"Bearer {KANKA_API_TOKEN}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+
+        url = f"{KANKA_API_BASE}/campaigns/{KANKA_CAMPAIGN_ID}/journals/{journal_id}"
+
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.delete(url, headers=headers, timeout=30.0)
+            except:
+                # Don't fail if cleanup fails - notification was still sent
+                pass
+
+        return f"""
+Successfully sent summary notification!
+
+Session: {session_title}
+Summary: {summary}
+Notification Tag: {NOTIFICATION_TAG_ID}
+Parent Journal: Notification Triggers (ID: {NOTIFICATION_TRIGGERS_JOURNAL_ID})
+
+The webhook notification has been triggered and the temporary journal has been cleaned up.
+"""

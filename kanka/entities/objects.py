@@ -1,12 +1,15 @@
 from mcp.server.fastmcp import FastMCP
 from ..client import make_kanka_request, create_kanka_entity, update_kanka_entity
-import httpx
-import os
 
-# Load from environment variables
-KANKA_API_TOKEN = os.getenv("KANKA_API_TOKEN", "")
-KANKA_CAMPAIGN_ID = os.getenv("KANKA_CAMPAIGN_ID", "")
-KANKA_API_BASE = "https://api.kanka.io/1.0"
+def _status_label(entity: dict) -> str:
+    status = entity.get('status') or {}
+    key = status.get('key')
+    status_id = entity.get('status_id')
+    if key and status_id:
+        return f"{key} (status_id={status_id})"
+    if status_id:
+        return f"status_id={status_id}"
+    return 'None'
 
 def format_item_summary(item: dict) -> str:
     """Format an item into a readable summary."""
@@ -15,6 +18,7 @@ Name: {item.get('name', 'Unknown')}
 ID: {item.get('id', 'N/A')}
 Entity ID: {item.get('entity_id', 'N/A')}
 Type: {item.get('type') or 'None'}
+Status: {_status_label(item)}
 Location ID: {item.get('location_id') or 'None'}
 Parent Item ID: {item.get('item_id') or 'None'}
 Tags: {len(item.get('tags', []))} tag(s)
@@ -27,6 +31,7 @@ Name: {item.get('name', 'Unknown')}
 ID: {item.get('id', 'N/A')}
 Entity ID: {item.get('entity_id', 'N/A')}
 Type: {item.get('type') or 'None'}
+Status: {_status_label(item)}
 Price: {item.get('price') or 'None'}
 Size: {item.get('size') or 'None'}
 Weight: {item.get('weight') or 'None'}
@@ -94,6 +99,7 @@ def register_object_tools(mcp: FastMCP):
         location_id: int = None,
         creator_id: int = None,
         item_id: int = None,
+        status_id: int = None,
         tags: list[int] = None,
         is_private: bool = False,
         tooltip: str = ""
@@ -110,6 +116,8 @@ def register_object_tools(mcp: FastMCP):
             location_id: ID of the location where this item is found
             creator_id: Entity ID of the item's creator
             item_id: Parent item ID for hierarchical relationships
+            status_id: ID of a campaign category_status (e.g. owned/lost/destroyed).
+                Use get_statuses_for("item") to discover valid IDs.
             tags: List of tag IDs to apply to this item
             is_private: Whether the item is only visible to admins
             tooltip: Hover text for the item (premium feature)
@@ -132,6 +140,8 @@ def register_object_tools(mcp: FastMCP):
             item_data["creator_id"] = creator_id
         if item_id is not None:
             item_data["item_id"] = item_id
+        if status_id is not None:
+            item_data["status_id"] = status_id
 
         # Add tags if provided
         if tags is not None and len(tags) > 0:
@@ -158,6 +168,7 @@ Name: {item.get('name')}
 Item ID: {item.get('id')}
 Entity ID: {item.get('entity_id')}
 Type: {item.get('type') or 'None'}
+Status: {_status_label(item)}
 Price: {item.get('price') or 'None'}
 Size: {item.get('size') or 'None'}
 Weight: {item.get('weight') or 'None'}
@@ -183,6 +194,7 @@ The item has been added to your campaign.
         location_id: int = None,
         creator_id: int = None,
         item_id: int = None,
+        status_id: int = None,
         tags: list[int] = None,
         is_private: bool = None,
         tooltip: str = None
@@ -202,6 +214,8 @@ The item has been added to your campaign.
             location_id: ID of the location where this item is found
             creator_id: Entity ID of the item's creator
             item_id: Parent item ID for hierarchical relationships
+            status_id: ID of a campaign category_status (e.g. owned/lost/destroyed).
+                Use get_statuses_for("item") to discover valid IDs.
             tags: List of tag IDs to apply to this item (replaces existing tags)
             is_private: Whether the item is only visible to admins
             tooltip: Hover text for the item (premium feature)
@@ -245,6 +259,8 @@ The item has been added to your campaign.
             update_data["creator_id"] = creator_id
         if item_id is not None:
             update_data["item_id"] = item_id
+        if status_id is not None:
+            update_data["status_id"] = status_id
         if is_private is not None:
             update_data["is_private"] = is_private
         if tooltip is not None:
@@ -275,6 +291,7 @@ Name: {item.get('name')}
 Item ID: {item.get('id')}
 Entity ID: {item.get('entity_id')}
 Type: {item.get('type') or 'None'}
+Status: {_status_label(item)}
 Price: {item.get('price') or 'None'}
 Size: {item.get('size') or 'None'}
 Weight: {item.get('weight') or 'None'}
@@ -286,68 +303,3 @@ Updated fields: {', '.join(updated_fields)}
 """
 
         return "Item updated, but unexpected response format."
-
-    @mcp.tool()
-    async def send_summary_notification(summary_text: str) -> str:
-        """Send a summary notification via webhook.
-
-        Creates a temporary item with tag 527715 which triggers a webhook notification.
-        The item is automatically deleted after creation.
-
-        This is useful for sending campaign summaries or notifications through your configured webhook.
-
-        Args:
-            summary_text: The summary text to send via webhook
-        """
-        # Tag ID that triggers the webhook
-        NOTIFICATION_TAG_ID = 527715
-
-        item_data = {
-            "name": f"Summary: {summary_text[:100]}",
-            "entry": summary_text,
-            "type": "Notification",
-            "tags": [NOTIFICATION_TAG_ID],
-            "save_tags": True,
-            "is_private": True  # Make it private so it doesn't clutter the public view
-        }
-
-        # Create the item
-        result = await create_kanka_entity("items", item_data)
-
-        if not result or "error" in result:
-            error_msg = result.get('error', 'Unknown error') if result else 'Failed to create notification'
-            return f"Failed to send notification: {error_msg}"
-
-        if "data" not in result:
-            return "Failed to send notification: unexpected response format."
-
-        item = result["data"]
-        item_id = item.get('id')
-
-        if not item_id:
-            return "Notification created but unable to clean up (no ID returned)."
-
-        # Now delete the item to clean up
-        headers = {
-            "Authorization": f"Bearer {KANKA_API_TOKEN}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-
-        url = f"{KANKA_API_BASE}/campaigns/{KANKA_CAMPAIGN_ID}/items/{item_id}"
-
-        async with httpx.AsyncClient() as client:
-            try:
-                await client.delete(url, headers=headers, timeout=30.0)
-            except:
-                # Don't fail if cleanup fails - notification was still sent
-                pass
-
-        return f"""
-Successfully sent summary notification!
-
-Summary: {summary_text}
-Notification Tag: {NOTIFICATION_TAG_ID}
-
-The webhook notification has been triggered and the temporary item has been cleaned up.
-"""

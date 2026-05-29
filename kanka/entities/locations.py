@@ -1,6 +1,16 @@
 from mcp.server.fastmcp import FastMCP
 from ..client import make_kanka_request, create_kanka_entity, update_kanka_entity
 
+def _status_label(entity: dict) -> str:
+    status = entity.get('status') or {}
+    key = status.get('key')
+    status_id = entity.get('status_id')
+    if key and status_id:
+        return f"{key} (status_id={status_id})"
+    if status_id:
+        return f"status_id={status_id}"
+    return 'None'
+
 def format_location_summary(location: dict) -> str:
     """Format a location into a readable summary."""
     return f"""
@@ -8,7 +18,7 @@ Name: {location.get('name', 'Unknown')}
 ID: {location.get('id', 'N/A')}
 Entity ID: {location.get('entity_id', 'N/A')}
 Type: {location.get('type') or 'None'}
-Status: {'Destroyed' if location.get('is_destroyed') else 'Intact'}
+Status: {_status_label(location)}
 Parent Location ID: {location.get('location_id') or 'None'}
 Tags: {len(location.get('tags', []))} tag(s)
 Is Private: {'Yes' if location.get('is_private') else 'No'}
@@ -21,7 +31,7 @@ Name: {location.get('name', 'Unknown')}
 ID: {location.get('id', 'N/A')}
 Entity ID: {location.get('entity_id', 'N/A')}
 Type: {location.get('type') or 'None'}
-Status: {'Destroyed' if location.get('is_destroyed') else 'Intact'}
+Status: {_status_label(location)}
 Parent Location ID: {location.get('location_id') or 'None (Top-level location)'}
 
 Entry/Description:
@@ -81,18 +91,19 @@ def register_location_tools(mcp: FastMCP):
         name: str,
         entry: str = "",
         location_type: str = "",
-        is_destroyed: bool = False,
+        status_id: int = None,
         parent_location_id: int = None,
         entity_image_uuid: str = None,
         is_private: bool = False
     ) -> str:
         """Create a new location in the campaign.
-        
+
         Args:
             name: The location's name (required)
             entry: HTML description of the location
             location_type: Location type (e.g., "City", "Forest", "Dungeon", "Country")
-            is_destroyed: Whether the location is destroyed/ruined
+            status_id: ID of a campaign category_status (e.g. destroyed). Use
+                get_statuses_for("location") to discover valid IDs.
             parent_location_id: ID of the parent location (for sub-locations)
             entity_image_uuid: Gallery image UUID for the location image
             is_private: Whether the location is only visible to admins
@@ -101,11 +112,12 @@ def register_location_tools(mcp: FastMCP):
             "name": name,
             "entry": entry,
             "type": location_type,
-            "is_destroyed": is_destroyed,
             "is_private": is_private
         }
-        
+
         # Only include optional fields if provided
+        if status_id is not None:
+            location_data["status_id"] = status_id
         if parent_location_id is not None:
             location_data["location_id"] = parent_location_id
         if entity_image_uuid is not None:
@@ -131,7 +143,7 @@ Name: {location.get('name')}
 Location ID: {location.get('id')}
 Entity ID: {location.get('entity_id')}
 Type: {location.get('type') or 'None'}
-Status: {'Destroyed' if location.get('is_destroyed') else 'Intact'}
+Status: {_status_label(location)}
 Parent Location ID: {location.get('location_id') or 'None'}
 Visibility: {'Private' if location.get('is_private') else 'Public'}
 
@@ -145,21 +157,22 @@ The location has been added to your campaign.
         location_name: str,
         entry: str = None,
         location_type: str = None,
-        is_destroyed: bool = None,
+        status_id: int = None,
         parent_location_id: int = None,
         entity_image_uuid: str = None,
         is_private: bool = None
     ) -> str:
         """Update an existing location by name.
-        
+
         First searches for the location by name, then updates the specified fields.
         Only provided fields will be updated - others remain unchanged.
-        
+
         Args:
             location_name: The name of the location to update (used for search)
             entry: HTML description of the location
             location_type: Location type (e.g., "City", "Forest", "Dungeon", "Country")
-            is_destroyed: Whether the location is destroyed/ruined
+            status_id: ID of a campaign category_status (e.g. destroyed). Use
+                get_statuses_for("location") to discover valid IDs.
             parent_location_id: ID of the parent location (for sub-locations)
             entity_image_uuid: Gallery image UUID for the location image
             is_private: Whether the location is only visible to admins
@@ -191,8 +204,8 @@ The location has been added to your campaign.
             update_data["entry"] = entry
         if location_type is not None:
             update_data["type"] = location_type
-        if is_destroyed is not None:
-            update_data["is_destroyed"] = is_destroyed
+        if status_id is not None:
+            update_data["status_id"] = status_id
         if parent_location_id is not None:
             update_data["location_id"] = parent_location_id
         if entity_image_uuid is not None:
@@ -221,7 +234,7 @@ Successfully updated location '{location_name}'!
 Name: {location.get('name')}
 ID: {location.get('id')}
 Type: {location.get('type') or 'None'}
-Status: {'Destroyed' if location.get('is_destroyed') else 'Intact'}
+Status: {_status_label(location)}
 Parent Location ID: {location.get('location_id') or 'None'}
 Visibility: {'Private' if location.get('is_private') else 'Public'}
 
