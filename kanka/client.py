@@ -14,6 +14,7 @@ KANKA_API_BASE = "https://api.kanka.io/1.0"
 # Load from environment variables
 KANKA_API_TOKEN = os.getenv("KANKA_API_TOKEN", "")
 KANKA_CAMPAIGN_ID = os.getenv("KANKA_CAMPAIGN_ID", "")
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 
 async def make_kanka_request(endpoint: str) -> dict[str, Any] | None:
     """Make a request to the Kanka API with proper authentication and error handling."""
