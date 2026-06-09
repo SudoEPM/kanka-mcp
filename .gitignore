@@ -10,3 +10,4 @@ wheels/
 .venv
 .env
 .claude/settings.local.json
+.vscode/settings.json

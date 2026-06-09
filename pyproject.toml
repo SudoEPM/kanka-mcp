@@ -9,3 +9,9 @@ dependencies = [
     "mcp[cli]>=1.16.0",
     "python-dotenv>=1.1.1",
 ]
+
+[project.scripts]
+kanka = "kanka.server:main"
+
+[tool.uv]
+package = true
